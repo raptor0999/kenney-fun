@@ -7,12 +7,13 @@ var run_speed = 8.0
 var speed = walk_speed
 var JUMP_VELOCITY = 4.5
 
-var state
 @onready var playerMesh:Node3D = $characterSmall
 @onready var animationPlayer:AnimationPlayer = $AnimationPlayer
 @onready var horPivot:Node3D = $CamRoot/HorizontalPivot
+@onready var springArm:SpringArm3D = $CamRoot/HorizontalPivot/VerticalPivot/SpringArm3D
 
-var mouseInput
+var state
+var punching = false
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -20,6 +21,8 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		horPivot.rotate_y(-event.relative.x * 0.005)
+		springArm.rotate_x(-event.relative.y * 0.005)
+		springArm.rotation.x = clamp(springArm.rotation.x, -PI/8, PI/8)
 
 func _input(event: InputEvent) -> void:
 	if Input.is_action_pressed("run"):
@@ -27,9 +30,13 @@ func _input(event: InputEvent) -> void:
 	else:
 		state = "walk"
 		
-	if Input.is_action_just_pressed("jump") and is_on_floor():
+	if Input.is_action_just_pressed("jump") and is_on_floor() and not punching:
 		state = "jump"
 		velocity.y = JUMP_VELOCITY
+		
+	if Input.is_action_just_pressed("punch") and not punching and is_on_floor():
+		punching = true
+		animationPlayer.play("ImportedLib/punch")
 		
 	if Input.is_action_just_pressed("quit"):
 		get_tree().quit()
@@ -62,7 +69,7 @@ func _physics_process(delta: float) -> void:
 	if input_dir:
 		playerMesh.rotation.y = lerp_angle(playerMesh.rotation.y, atan2(velocity.x, velocity.z), LERP_VALUE)
 		
-	if is_on_floor():
+	if is_on_floor() and not punching:
 		if state == "run":
 			animationPlayer.play("ImportedLib/run")
 			speed = run_speed
@@ -76,3 +83,6 @@ func _physics_process(delta: float) -> void:
 			animationPlayer.play("ImportedLib/idle")
 
 	move_and_slide()
+
+func stopPunching():
+	punching = false
